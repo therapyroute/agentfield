@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.44-rc.2] - 2026-03-02
+
+
+### Testing
+
+- Test(control-plane): add execution cleanup service coverage (#195) (5a227cf)
+
 ## [0.1.44-rc.1] - 2026-03-02
 
 
