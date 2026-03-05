@@ -57,6 +57,14 @@ from .exceptions import (
     ValidationError,
 )
 from .client import ApprovalRequestResponse, ApprovalResult, ApprovalStatusResponse
+from .tool_calling import (
+    ToolCallConfig,
+    ToolCallRecord,
+    ToolCallResponse,
+    ToolCallTrace,
+    capability_to_tool_schema,
+    capabilities_to_tool_schemas,
+)
 
 __all__ = [
     "Agent",
@@ -108,6 +116,13 @@ __all__ = [
     "ApprovalRequestResponse",
     "ApprovalResult",
     "ApprovalStatusResponse",
+    # Tool calling
+    "ToolCallConfig",
+    "ToolCallRecord",
+    "ToolCallResponse",
+    "ToolCallTrace",
+    "capability_to_tool_schema",
+    "capabilities_to_tool_schemas",
     # Exceptions
     "AgentFieldError",
     "AgentFieldClientError",
