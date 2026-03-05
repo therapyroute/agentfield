@@ -102,12 +102,8 @@ def write_schema_file(schema_json: str, cwd: str) -> str:
     path = get_schema_path(cwd)
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
-            file_obj.write(schema_json)
-    except Exception:
-        os.close(fd)
-        raise
+    with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
+        file_obj.write(schema_json)
     return path
 
 
@@ -218,13 +214,85 @@ def cleanup_temp_files(cwd: str) -> None:
             pass
 
 
-def build_followup_prompt(error_message: str, cwd: str) -> str:
-    """Build a follow-up prompt for the agent to fix invalid JSON.
+def diagnose_output_failure(file_path: str, schema: Any) -> str:
+    """Diagnose why the output file failed validation.
 
-    Used by the runner for Layer 3 recovery.
+    Returns a human-readable error string describing the failure mode.
     """
+    if not os.path.exists(file_path):
+        return "The output file was NOT created."
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError as exc:
+        return f"Could not read output file: {exc}"
+
+    if not content.strip():
+        return "The output file exists but is empty."
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        snippet = content[:500]
+        return (
+            f"The file contains invalid JSON. Parse error: {exc}\n"
+            f"File content (first 500 chars):\n{snippet}"
+        )
+
+    json_schema = schema_to_json_schema(schema)
+    if isinstance(schema, dict):
+        return "JSON parses but could not be validated (dict schema, no model)."
+
+    try:
+        validate_against_schema(data, schema)
+        return "JSON parses and validates (unexpected — may be a race condition)."
+    except Exception as exc:
+        return (
+            f"JSON parses but fails schema validation: {exc}\n"
+            f"Expected schema top-level keys: "
+            f"{list(json_schema.get('properties', {}).keys())}\n"
+            f"Actual top-level keys: {list(data.keys()) if isinstance(data, dict) else 'NOT A DICT'}"
+        )
+
+
+def build_followup_prompt(error_message: str, cwd: str, schema: Any = None) -> str:
     output_path = get_output_path(cwd)
-    return (
-        f"The JSON at {output_path} failed validation: {error_message}\n"
-        "Please rewrite the corrected, valid JSON to the same file."
+    schema_path = get_schema_path(cwd)
+
+    parts = [
+        f"PREVIOUS ATTEMPT FAILED. The JSON output at {output_path} failed validation.\n",
+        f"Error: {error_message}\n\n",
+    ]
+
+    if schema is not None:
+        json_schema = schema_to_json_schema(schema)
+        schema_json = json.dumps(json_schema, indent=2)
+        if is_large_schema(schema_json):
+            if os.path.exists(schema_path):
+                parts.append(
+                    f"The required JSON Schema is at: {schema_path}\n"
+                    "Re-read the schema file carefully.\n"
+                )
+            else:
+                write_schema_file(schema_json, cwd)
+                parts.append(
+                    f"The required JSON Schema has been written to: {schema_path}\n"
+                    "Read that file for the exact expected structure.\n"
+                )
+        else:
+            parts.append(f"The JSON MUST conform to this schema:\n{schema_json}\n\n")
+    elif os.path.exists(schema_path):
+        parts.append(
+            f"The required JSON Schema is at: {schema_path}\n"
+            "Re-read the schema file carefully.\n"
+        )
+
+    parts.append(
+        f"Use your Write tool to create or overwrite the file: {output_path}\n"
+        "The file must contain ONLY valid JSON matching the schema. "
+        "No markdown fences, no extra text, no comments.\n"
+        "Each field defined in the schema must be present as a top-level key in your JSON object."
     )
+
+    return "".join(parts)
