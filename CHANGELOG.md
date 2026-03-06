@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.47-rc.4] - 2026-03-06
+
+
+### Fixed
+
+- Fix: include API key in note() request headers (#235)
+
+* fix: include API key in note() request headers
+
+The note() method was sending execution context headers but
+not the X-API-Key, causing 401 when the control plane has
+API key auth enabled (production). Works locally because
+local dev typically has no API key configured.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+* Fix test stub to include _get_auth_headers on client
+
+The test_note_sends_async_request test was failing because the agent
+stub's client (SimpleNamespace) lacked the _get_auth_headers method
+added in the note auth fix. The _send_note coroutine calls
+self.client._get_auth_headers(), which raised AttributeError and
+silently prevented the HTTP post from executing.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com> (087c2c6)
+
 ## [0.1.47-rc.3] - 2026-03-06
 
 
