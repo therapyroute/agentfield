@@ -79,6 +79,21 @@ Write [Python](https://agentfield.ai/api/python-sdk/overview), [Go](https://agen
       <a href="https://github.com/Agent-Field/af-reactive-atlas-mongodb">GitHub →</a>
     </td>
   </tr>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://github.com/Agent-Field/sec-af">
+        <img src="assets/examples/ai-security-auditor.png" alt="Autonomous Security Audit" />
+      </a>
+      <br/>
+      <b>Autonomous Security Audit</b>
+      <br/>
+      <sub>250 coordinated agents trace every vulnerability source-to-sink and adversarially verify each finding. Confirmed exploits, not pattern flags — plugs into GitHub Actions CI.</sub>
+      <br/><br/>
+      <a href="https://github.com/Agent-Field/sec-af">GitHub →</a>
+    </td>
+    <td width="33%"></td>
+    <td width="33%"></td>
+  </tr>
 </table>
 
 [See all examples →](https://agentfield.ai/examples)
