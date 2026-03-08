@@ -6,6 +6,226 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.48-rc.2] - 2026-03-08
+
+
+### Added
+
+- Feat: External Cancel/Pause/Resume Execution (Epic #238) (#246)
+
+* feat(state-machine): add paused execution state and transitions (#239)
+
+- Add ExecutionStatusPaused constant and aliases to pkg/types/status.go
+- Add paused state transitions in execution_state_validation.go:
+  running→paused, paused→running, paused→cancelled
+- Update SQLite CHECK constraints in local.go
+- Add PostgreSQL migration 027_add_paused_execution_status.sql
+- Add ExecutionPaused/Resumed/Cancelled event types to event bus
+- Add publish helpers for new event types
+- Update deriveOverallStatus to handle paused workflows
+- Update frontend CanonicalStatus type, theme, badge, hex colors for paused
+
+Part of epic #238 — External Cancel/Pause Execution
+
+* feat(api): add POST /executions/:id/cancel endpoint (#240)
+
+- CancelExecutionHandler: updates execution + workflow execution to cancelled
+- Emits ExecutionCancelled event via event bus
+- Stores workflow execution event for audit trail
+- Supports optional reason field in request body
+- Returns previous_status, new status, and cancelled_at timestamp
+- Rejects cancel on terminal states (409 Conflict)
+- Returns 404 for non-existent executions
+- Registers route under agentAPI group
+- Comprehensive tests: state transitions, reason handling, edge cases
+
+* feat(api): add POST /executions/:id/pause and /resume endpoints (#241)
+
+- PauseExecutionHandler: transitions running -> paused
+- ResumeExecutionHandler: transitions paused -> running
+- Both update execution record + workflow execution atomically
+- Emit ExecutionPaused/ExecutionResumed events via event bus
+- Store workflow execution events for audit trail
+- Support optional reason field in request body
+- Strict state validation: pause only from running, resume only from paused
+- Returns previous_status, new status, and paused_at/resumed_at
+- Register routes under agentAPI group
+- Comprehensive tests using existing testExecutionStorage helpers
+
+* feat(cli): add af execution cancel|pause|resume commands (#244)
+
+- NewExecutionCommand with cancel, pause, resume subcommands
+- Shared executionActionOptions/executionActionConfig for DRY implementation
+- Supports --server, --token, --timeout, --json, --reason flags
+- Human-readable output by default, raw JSON with --json
+- User-friendly error messages for 404/409 status codes
+- Registered under RootCmd in root.go
+
+* feat(executor): enforce cancel/pause state in DAG executor (#242)
+
+- callAgent checks execution status before making HTTP call
+- Cancelled executions skip agent call and return early
+- Paused executions block in waitForResume using event bus pattern
+- waitForResume unblocks on ExecutionResumed (return nil) or
+  ExecutionCancelledEvent (return error)
+- Race condition guard: checks status before subscribing to event bus
+- asyncExecutionJob.process also checks status before callAgent
+- Tests: cancel skip, pause+resume flow, pause+cancel flow, async job skip
+
+* feat(ui): add cancel/pause/resume controls to workflow header (#243)
+
+- Add Cancel, Pause, Resume buttons to EnhancedWorkflowHeader
+- Cancel uses AlertDialog confirmation (destructive action guard)
+- Pause/Resume use ghost buttons with amber/emerald hover states
+- Mobile-responsive: icon-only on small screens, icon+label on desktop
+- Loading spinners during mutations, all buttons disabled while mutating
+- API client functions in executionsApi.ts for cancel/pause/resume
+- Routes registered under UI API group in server.go
+- NotificationProvider wraps workflow detail page for toast feedback
+- New alert-dialog.tsx component (shadcn/Radix pattern)
+
+* fix(storage): add missing 'waiting' status to SQLite and PostgreSQL CHECK constraints
+
+The 'waiting' status (used by HITL approval flow) was a valid canonical status
+in Go code but was missing from database CHECK constraints. This would cause
+INSERT/UPDATE failures when executions transition to 'waiting' state.
+
+Fixes both SQLite (local.go) and PostgreSQL (migration 027) constraints.
+
+* fix(ui): add paused status to all CanonicalStatus Record maps
+
+WorkflowNode, HoverDetailPanel, StatusSection, EnhancedWorkflowIdentity,
+and ExecutionHistoryList all had Record<CanonicalStatus, ...> maps missing
+the 'paused' entry, causing TypeScript build failures.
+
+* refactor(ui): redesign cancel/pause/resume as icon-only toolbar buttons
+
+Match existing toolbar convention (ghost variant, h-8 w-8, title tooltips).
+Remove text labels and destructive variant to reduce visual weight.
+Add separator between execution controls and view controls.
+Keeps AlertDialog confirmation for cancel safety.
+
+* fix(ui): fix paused priority in deriveOverallStatus and move graph controls to floating toolbar
+
+- Fix deriveOverallStatus() to prioritize paused over running (deliberate user
+  action takes precedence over child execution state)
+- Add 2 test cases for paused priority behavior
+- Move viewMode (Standard/Performance/Debug) and Focus mode from header to
+  bottom-left floating toolbar in graph view
+- Update EnhancedWorkflowDetailPage prop wiring for toolbar migration
+
+* feat(ui): add execution lifecycle controls, live duration, and status filter enhancements
+
+- Redesign CompactExecutionHeader with pause/cancel/resume icon buttons,
+  live elapsed time counter, refresh button, and hover card for secondary
+  details (agent, DID, workflow, input/output sizes)
+- Wrap EnhancedExecutionDetailPage with NotificationProvider for toast
+  notifications on pause/cancel/resume actions
+- Add live elapsed time display to EnhancedWorkflowHeader for running and
+  paused workflows (replaces N/A with real-time counter)
+- Add Paused and Cancelled to STATUS_FILTER_OPTIONS in PageHeader
+- Add paused to statusLabels in CompactWorkflowsTable
+
+* fix(ui): single-line headers and fix unicode triangle rendering
+
+- Convert two-line name+subtitle layout to single-line in both
+  workflow and execution detail page headers
+- Replace HTML entity &blacktriangle; with Unicode ▲ (JSX compat)
+- Replace &bull; separators with Unicode middle dot (·)
+- Remove unused Clock import from CompactExecutionHeader
+- Name appears bold, metadata appears muted on same line
+
+* fix(ui): human-readable durations, visible agent_node_id, LIVE badge → refresh dot
+
+- Replace local formatDuration with shared formatDurationHumanReadable
+  (e.g. 4487.0m → 3d 2h, 74h 43m → 3d 2h)
+- Show agent_node_id as distinct mono chip next to reasoner name
+- Remove standalone LIVE/IDLE badges from both headers
+- Add green pulsing dot on refresh button when execution is live
+- Clean up unused Clock import and underscore unused props
+
+* fix(ui): show agent_node_id in workflow header, remove steps/depth clutter
+
+- Extract root agent_node_id from DAG timeline data
+- Display as mono chip next to workflow name (same style as execution page)
+- Remove 'N steps · depth N' metadata (not useful to users)
+- Keep duration with live indicator and run ID for copying
+- Update mobile row to match desktop layout
+
+* feat(ui): redesign execution and workflow headers into 2-row layout
+
+Restructure both detail page headers from single-row into a
+semantically-organized 2-row layout with proper information hierarchy,
+responsive behavior, and mobile support.
+
+Row 1: status cluster + identity cluster + lifecycle controls
+Row 2: section navigation tabs (absorbed from separate components) + summary metrics
+
+- Rewrite CompactExecutionHeader with status dot, identity chips,
+  tooltips, controlled cancel AlertDialog, and mobile overflow menu
+- Rewrite EnhancedWorkflowHeader with webhook HoverCard, active/failed
+  badges, fullscreen toggle, and graph depth metrics
+- Move tab navigation into headers (remove standalone tab components)
+- Add mobile 3-row stacked layout with DropdownMenu overflow
+- Update both detail pages to pass tab props to headers
+
+* fix(test): resolve data race in execution cleanup test
+
+Use thread-safe syncBuffer for concurrent log writes from cleanup
+goroutine and Stop() goroutine. The bytes.Buffer is not safe for
+concurrent writes, causing race detector failures on CI.
+
+* fix: address code review issues in cancel/pause/resume feature
+
+- Add 24h timeout to waitForResume in async execution path to prevent
+  goroutine leaks when resume/cancel events are never delivered
+- Use unique subscriber IDs (with nanosecond suffix) to prevent event
+  bus collisions when parallel DAG branches wait on same execution
+- Change CancelExecutionHandler to accept ExecutionStore interface
+  instead of storage.StorageProvider for interface segregation
+- Fix pause response Reason field to use *string (matching cancel
+  response) so empty reasons are omitted from JSON via omitempty
+- Remove debug console.log from executionsApi.ts that leaked execution
+  data to browser console in production
+
+* feat(ui): redesign workflow DAG graph toolbar (#248)
+
+* feat(ui): redesign workflow DAG toolbar with unified GraphToolbar component
+
+Replace scattered graph controls (layout buttons, search, center, fit view,
+view mode toggle, focus mode) with a single compact icon-based toolbar.
+
+- Add GraphToolbar component with layout/view mode dropdowns, search, focus,
+  and smart center buttons using Phosphor icons with tooltips
+- Implement wrapped tree layout in LayoutManager for wide-branching DAGs
+  (wraps 50+ siblings into rows of N columns targeting ~1600px width)
+- Remove duplicate mrtree layout (keep Dagre tree as single tree option)
+- Extend WorkflowDAGControls with changeLayout() and onLayoutInfoChange
+- Simplify VirtualizedDAG by removing layout-related props
+- Remove SLOW warning badges, replace with subtle 'slower' text in dropdown
+- Unify default layout to tree for all graph sizes
+
+* fix(ui): clean up dead code and unused props from toolbar redesign
+
+- Delete LayoutControls.tsx (fully replaced by GraphToolbar, zero imports remain)
+- Remove unused isFullscreen prop from EnhancedWorkflowFlowProps and call site
+- Clean blank line artifacts left from removed Panel blocks
+
+* fix(handlers): move state validation inside update callbacks to eliminate TOCTOU race
+
+The cancel/pause/resume handlers previously checked execution state
+before the atomic update callback, allowing concurrent requests to
+slip through. Now the state check happens inside the callback where
+it reads the locked current value, and state-conflict errors are
+properly mapped to 409 Conflict instead of 500.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Abir Abbas <abirabbas1998@gmail.com>
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com> (56f7f5c)
+
 ## [0.1.48-rc.1] - 2026-03-07
 
 
