@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.49-rc.1] - 2026-03-09
+
+
+### Fixed
+
+- Fix: allow state transitions from stopping to active/starting
+
+When a node restarts while the control plane still considers it
+"stopping", heartbeats get rejected causing the node to be stuck
+offline. Allow stopping → active/starting transitions so nodes
+can recover from this state.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com> (d328e60)
+
 ## [0.1.48] - 2026-03-09
 
 ## [0.1.48-rc.4] - 2026-03-09
