@@ -6,6 +6,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.48-rc.3] - 2026-03-09
+
+
+### Other
+
+- Fix squished authorization table layout (#253)
+
+* Fix squished authorization table layout
+
+Widen the grid template columns for Status, Registered, and Actions
+so they don't overlap. Use flexible sizing for Registered and Actions
+columns to accommodate varying content widths.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+* Fix authorization table: use fixed widths for right columns
+
+The fr-based columns were consuming nearly all space, squeezing
+Status/Registered/Actions into a tiny area. Use fixed px widths
+for the right 3 columns (matching the pattern used by other tables)
+so they get space allocated first before fr columns divide the rest.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+* Fix Registered column wrapping and Actions column alignment
+
+- Add whitespace-nowrap to Registered time and action buttons so
+  "21 hours ago" and "Approve Reject" stay on one line
+- Widen Actions column to 160px to fit both buttons
+- Add "Actions" header label so all 6 columns have visible headers
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+* Widen Actions column to 200px to fit Approve + Reject buttons
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+* Reduce left column fr values to stop hogging space from right columns
+
+All three flexible columns now use 1fr instead of 2fr/1.5fr, giving
+equal weight and leaving more room for Status, Registered, and Actions.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com> (4d534b9)
+
 ## [0.1.48-rc.2] - 2026-03-08
 
 
