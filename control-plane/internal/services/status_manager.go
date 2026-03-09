@@ -543,7 +543,7 @@ func (sm *StatusManager) isValidTransition(from, to types.AgentState) bool {
 		types.AgentStateInactive: {types.AgentStateStarting, types.AgentStateActive},
 		types.AgentStateStarting: {types.AgentStateActive, types.AgentStateInactive},
 		types.AgentStateActive:   {types.AgentStateInactive, types.AgentStateStopping},
-		types.AgentStateStopping: {types.AgentStateInactive},
+		types.AgentStateStopping: {types.AgentStateInactive, types.AgentStateActive, types.AgentStateStarting},
 	}
 
 	allowed, exists := validTransitions[from]
